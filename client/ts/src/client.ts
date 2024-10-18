@@ -155,8 +155,18 @@ export class ManifestClient {
     });
     const baseMintPk: PublicKey = marketObject.baseMint();
     const quoteMintPk: PublicKey = marketObject.quoteMint();
-    const baseMint: Mint = await getMint(connection, baseMintPk);
-    const quoteMint: Mint = await getMint(connection, quoteMintPk);
+    const baseMint: Mint = await getMint(
+      connection,
+      baseMintPk,
+      undefined,
+      TOKEN_2022_PROGRAM_ID,
+    );
+    const quoteMint: Mint = await getMint(
+      connection,
+      quoteMintPk,
+      undefined,
+      TOKEN_2022_PROGRAM_ID,
+    );
 
     const userWrapper = await ManifestClient.fetchFirstUserWrapper(
       connection,
