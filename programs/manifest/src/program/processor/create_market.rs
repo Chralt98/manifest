@@ -11,7 +11,7 @@ use crate::{
 use hypertree::{get_mut_helper, trace};
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, program_pack::Pack, pubkey::Pubkey,
-    rent::Rent, sysvar::Sysvar,
+    rent::Rent, sysvar::Sysvar, msg,
 };
 use spl_token_2022::{
     extension::{
@@ -30,6 +30,8 @@ pub(crate) fn process_create_market(
     trace!("process_create_market accs={accounts:?}");
     let create_market_context: CreateMarketContext = CreateMarketContext::load(accounts)?;
 
+    msg!("Load create market context finished");
+
     let CreateMarketContext {
         market,
         payer,
@@ -47,6 +49,8 @@ pub(crate) fn process_create_market(
         ManifestError::InvalidMarketParameters,
         "Base and quote must be different",
     )?;
+
+    msg!("Before for loop base mint and quote mint");
 
     for mint in [base_mint.as_ref(), quote_mint.as_ref()] {
         if *mint.owner == spl_token_2022::id() {
@@ -75,6 +79,8 @@ pub(crate) fn process_create_market(
             }
         }
     }
+
+    msg!("After for loop base mint and quote mint");
 
     {
         // Create the base and quote vaults of this market
@@ -160,6 +166,8 @@ pub(crate) fn process_create_market(
             }
         }
 
+        msg!("After for loop base vault and quote vault");
+
         // Do not need to initialize with the system program because it is
         // assumed that it is done already and loaded with rent. That is not at
         // a PDA because we do not want to be restricted to a single market for
@@ -173,6 +181,8 @@ pub(crate) fn process_create_market(
             MarketFixed::new_empty(&base_mint, &quote_mint, market.key);
         assert_eq!(market.data_len(), size_of::<MarketFixed>());
 
+        msg!("Before borrow mut data");
+
         let market_bytes: &mut [u8] = &mut market.try_borrow_mut_data()?[..];
         *get_mut_helper::<MarketFixed>(market_bytes, 0_u32) = empty_market_fixed;
 
@@ -183,6 +193,8 @@ pub(crate) fn process_create_market(
             quote_mint: *quote_mint.info.key,
         })?;
     }
+
+    msg!("After borrow mut data");
 
     // Leave a free block on the market so takers can use and leave it.
     expand_market_if_needed(&payer, &market, &system_program)?;
