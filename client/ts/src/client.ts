@@ -516,6 +516,8 @@ export class ManifestClient {
         : this.market.baseDecimals();
     const amountAtoms = Math.ceil(amountTokens * 10 ** mintDecimals);
 
+    console.log('DEPOSIT_IX amountAtoms:', amountAtoms);
+
     return createDepositInstruction(
       {
         market: this.market.address,
@@ -1305,6 +1307,8 @@ function toWrapperPlaceOrderParams(
   const numBaseAtoms: bignum = Math.floor(
     wrapperPlaceOrderParamsExternal.numBaseTokens * baseAtomsPerToken,
   );
+
+  console.log('toWrapperPlaceOrderParams numBaseAtoms:', numBaseAtoms);
 
   return {
     ...wrapperPlaceOrderParamsExternal,
