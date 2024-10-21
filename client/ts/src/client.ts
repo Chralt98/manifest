@@ -558,6 +558,8 @@ export class ManifestClient {
     const traderTokenAccount: PublicKey = getAssociatedTokenAddressSync(
       mint,
       payer,
+      false,
+      TOKEN_2022_PROGRAM_ID,
     );
     const is22: boolean =
       (mint.equals(this.baseMint.address) && this.isBase22) ||
