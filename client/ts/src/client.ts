@@ -620,7 +620,10 @@ export class ManifestClient {
    *
    * @returns TransactionInstruction[]
    */
-  public withdrawAllIx(): TransactionInstruction[] {
+  public withdrawAllIx(
+    baseMintProgramId = TOKEN_PROGRAM_ID,
+    quoteMintProgramId = TOKEN_PROGRAM_ID,
+  ): TransactionInstruction[] {
     if (!this.wrapper || !this.payer) {
       throw new Error('Read only');
     }
@@ -635,6 +638,7 @@ export class ManifestClient {
         this.payer,
         this.market.baseMint(),
         baseBalance,
+        baseMintProgramId,
       );
       withdrawInstructions.push(baseWithdrawIx);
     }
@@ -648,6 +652,7 @@ export class ManifestClient {
         this.payer,
         this.market.quoteMint(),
         quoteBalance,
+        quoteMintProgramId,
       );
       withdrawInstructions.push(quoteWithdrawIx);
     }
@@ -1144,6 +1149,8 @@ export class ManifestClient {
    */
   public async killSwitchMarket(
     payerKeypair: Keypair,
+    baseMintProgramId = TOKEN_PROGRAM_ID,
+    quoteMintProgramId = TOKEN_PROGRAM_ID,
   ): Promise<TransactionSignature[]> {
     await this.market.reload(this.connection);
     const cancelAllIx = this.cancelAllIx();
@@ -1159,7 +1166,10 @@ export class ManifestClient {
     );
     // TOOD: Merge this into one transaction
     await this.market.reload(this.connection);
-    const withdrawAllIx = this.withdrawAllIx();
+    const withdrawAllIx = this.withdrawAllIx(
+      baseMintProgramId,
+      quoteMintProgramId,
+    );
     const withdrawAllTx = new Transaction();
     const wihdrawAllSig = await sendAndConfirmTransaction(
       this.connection,
