@@ -148,6 +148,8 @@ export class ManifestClient {
     connection: Connection,
     marketPk: PublicKey,
     payerKeypair: Keypair,
+    baseMintProgramId = TOKEN_PROGRAM_ID,
+    quoteMintProgramId = TOKEN_PROGRAM_ID,
   ): Promise<ManifestClient> {
     const marketObject: Market = await Market.loadFromAddress({
       connection: connection,
@@ -159,13 +161,13 @@ export class ManifestClient {
       connection,
       baseMintPk,
       undefined,
-      TOKEN_2022_PROGRAM_ID,
+      baseMintProgramId,
     );
     const quoteMint: Mint = await getMint(
       connection,
       quoteMintPk,
       undefined,
-      TOKEN_2022_PROGRAM_ID,
+      quoteMintProgramId,
     );
 
     const userWrapper = await ManifestClient.fetchFirstUserWrapper(
@@ -363,6 +365,8 @@ export class ManifestClient {
     connection: Connection,
     marketPk: PublicKey,
     trader: PublicKey,
+    baseMintProgramId = TOKEN_PROGRAM_ID,
+    quoteMintProgramId = TOKEN_PROGRAM_ID,
   ): Promise<ManifestClient> {
     const { setupNeeded } = await this.getSetupIxs(
       connection,
@@ -379,8 +383,18 @@ export class ManifestClient {
     });
     const baseMintPk: PublicKey = marketObject.baseMint();
     const quoteMintPk: PublicKey = marketObject.quoteMint();
-    const baseMint: Mint = await getMint(connection, baseMintPk);
-    const quoteMint: Mint = await getMint(connection, quoteMintPk);
+    const baseMint: Mint = await getMint(
+      connection,
+      baseMintPk,
+      undefined,
+      baseMintProgramId,
+    );
+    const quoteMint: Mint = await getMint(
+      connection,
+      quoteMintPk,
+      undefined,
+      quoteMintProgramId,
+    );
 
     const userWrapper = await ManifestClient.fetchFirstUserWrapper(
       connection,
@@ -419,6 +433,8 @@ export class ManifestClient {
   public static async getClientReadOnly(
     connection: Connection,
     marketPk: PublicKey,
+    baseMintProgramId = TOKEN_PROGRAM_ID,
+    quoteMintProgramId = TOKEN_PROGRAM_ID,
   ): Promise<ManifestClient> {
     const marketObject: Market = await Market.loadFromAddress({
       connection: connection,
@@ -426,8 +442,18 @@ export class ManifestClient {
     });
     const baseMintPk: PublicKey = marketObject.baseMint();
     const quoteMintPk: PublicKey = marketObject.quoteMint();
-    const baseMint: Mint = await getMint(connection, baseMintPk);
-    const quoteMint: Mint = await getMint(connection, quoteMintPk);
+    const baseMint: Mint = await getMint(
+      connection,
+      baseMintPk,
+      undefined,
+      baseMintProgramId,
+    );
+    const quoteMint: Mint = await getMint(
+      connection,
+      quoteMintPk,
+      undefined,
+      quoteMintProgramId,
+    );
 
     return new ManifestClient(
       connection,
@@ -496,6 +522,7 @@ export class ManifestClient {
     payer: PublicKey,
     mint: PublicKey,
     amountTokens: number,
+    mintProgramId = TOKEN_PROGRAM_ID,
   ): TransactionInstruction {
     if (!this.wrapper || !this.payer) {
       throw new Error('Read only');
@@ -505,7 +532,7 @@ export class ManifestClient {
       mint,
       payer,
       false,
-      TOKEN_2022_PROGRAM_ID,
+      mintProgramId,
     );
     const is22: boolean =
       (mint.equals(this.baseMint.address) && this.isBase22) ||
@@ -548,6 +575,7 @@ export class ManifestClient {
     payer: PublicKey,
     mint: PublicKey,
     amountTokens: number,
+    mintProgramId = TOKEN_PROGRAM_ID,
   ): TransactionInstruction {
     if (!this.wrapper || !this.payer) {
       throw new Error('Read only');
@@ -557,7 +585,7 @@ export class ManifestClient {
       mint,
       payer,
       false,
-      TOKEN_2022_PROGRAM_ID,
+      mintProgramId,
     );
     const is22: boolean =
       (mint.equals(this.baseMint.address) && this.isBase22) ||
@@ -814,14 +842,23 @@ export class ManifestClient {
    *
    * @returns TransactionInstruction
    */
-  public swapIx(payer: PublicKey, params: SwapParams): TransactionInstruction {
+  public swapIx(
+    payer: PublicKey,
+    params: SwapParams,
+    baseMintProgramId = TOKEN_PROGRAM_ID,
+    quoteMintProgramId = TOKEN_PROGRAM_ID,
+  ): TransactionInstruction {
     const traderBase: PublicKey = getAssociatedTokenAddressSync(
       this.baseMint.address,
       payer,
+      undefined,
+      baseMintProgramId,
     );
     const traderQuote: PublicKey = getAssociatedTokenAddressSync(
       this.quoteMint.address,
       payer,
+      undefined,
+      quoteMintProgramId,
     );
     const baseVault: PublicKey = getVaultAddress(
       this.market.address,
