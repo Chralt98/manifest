@@ -27,7 +27,7 @@ import {
 } from './manifest/instructions';
 import { OrderType, SwapParams } from './manifest/types';
 import { Market } from './market';
-import { MarketInfoParsed, Wrapper, WrapperData } from './wrapperObj';
+import { WrapperMarketInfo, Wrapper, WrapperData } from './wrapperObj';
 import { PROGRAM_ID as MANIFEST_PROGRAM_ID, PROGRAM_ID } from './manifest';
 import {
   PROGRAM_ID as WRAPPER_PROGRAM_ID,
@@ -73,7 +73,10 @@ export class ManifestClient {
     private payer: PublicKey | null,
     private baseMint: Mint,
     private quoteMint: Mint,
-    // TODO: Consider getting the globals for each side here.
+    // Globals are public. The expectation is that users will directly access
+    // them, similar to the market.
+    public baseGlobal: Global | null,
+    public quoteGlobal: Global | null,
   ) {
     // If no extension data then the mint is not Token2022
     this.isBase22 = baseMint.tlvData.length > 0;
@@ -169,6 +172,14 @@ export class ManifestClient {
       undefined,
       quoteMintProgramId,
     );
+    const baseGlobal: Global | null = await Global.loadFromAddress({
+      connection,
+      address: getGlobalAddress(baseMint.address),
+    });
+    const quoteGlobal: Global | null = await Global.loadFromAddress({
+      connection,
+      address: getGlobalAddress(quoteMint.address),
+    });
 
     const userWrapper = await ManifestClient.fetchFirstUserWrapper(
       connection,
@@ -218,6 +229,8 @@ export class ManifestClient {
         payerKeypair.publicKey,
         baseMint,
         quoteMint,
+        baseGlobal,
+        quoteGlobal,
       );
     }
 
@@ -225,8 +238,8 @@ export class ManifestClient {
     const wrapperData: WrapperData = Wrapper.deserializeWrapperBuffer(
       userWrapper.account.data,
     );
-    const existingMarketInfos: MarketInfoParsed[] =
-      wrapperData.marketInfos.filter((marketInfo: MarketInfoParsed) => {
+    const existingMarketInfos: WrapperMarketInfo[] =
+      wrapperData.marketInfos.filter((marketInfo: WrapperMarketInfo) => {
         return marketInfo.market.toBase58() == marketPk.toBase58();
       });
     if (existingMarketInfos.length > 0) {
@@ -241,6 +254,8 @@ export class ManifestClient {
         payerKeypair.publicKey,
         baseMint,
         quoteMint,
+        baseGlobal,
+        quoteGlobal,
       );
     }
 
@@ -265,6 +280,8 @@ export class ManifestClient {
       payerKeypair.publicKey,
       baseMint,
       quoteMint,
+      baseGlobal,
+      quoteGlobal,
     );
   }
 
@@ -330,8 +347,8 @@ export class ManifestClient {
       userWrapper.account.data,
     );
 
-    const existingMarketInfos: MarketInfoParsed[] =
-      wrapperData.marketInfos.filter((marketInfo: MarketInfoParsed) => {
+    const existingMarketInfos: WrapperMarketInfo[] =
+      wrapperData.marketInfos.filter((marketInfo: WrapperMarketInfo) => {
         return marketInfo.market.toBase58() == marketPk.toBase58();
       });
     if (existingMarketInfos.length > 0) {
@@ -411,6 +428,14 @@ export class ManifestClient {
       connection,
       address: userWrapper.pubkey,
     });
+    const baseGlobal: Global | null = await Global.loadFromAddress({
+      connection,
+      address: getGlobalAddress(baseMint.address),
+    });
+    const quoteGlobal: Global | null = await Global.loadFromAddress({
+      connection,
+      address: getGlobalAddress(quoteMint.address),
+    });
 
     return new ManifestClient(
       connection,
@@ -419,6 +444,8 @@ export class ManifestClient {
       trader,
       baseMint,
       quoteMint,
+      baseGlobal,
+      quoteGlobal,
     );
   }
 
@@ -454,6 +481,14 @@ export class ManifestClient {
       undefined,
       quoteMintProgramId,
     );
+    const baseGlobal: Global | null = await Global.loadFromAddress({
+      connection,
+      address: getGlobalAddress(baseMint.address),
+    });
+    const quoteGlobal: Global | null = await Global.loadFromAddress({
+      connection,
+      address: getGlobalAddress(quoteMint.address),
+    });
 
     return new ManifestClient(
       connection,
@@ -462,17 +497,29 @@ export class ManifestClient {
       null,
       baseMint,
       quoteMint,
+      baseGlobal,
+      quoteGlobal,
     );
   }
 
   /**
-   * Reload the market and wrapper objects.
+   * Reload the market and wrapper and global objects.
    */
   public async reload(): Promise<void> {
     await Promise.all([
       () => {
         if (this.wrapper) {
           return this.wrapper.reload(this.connection);
+        }
+      },
+      () => {
+        if (this.baseGlobal) {
+          return this.baseGlobal.reload(this.connection);
+        }
+      },
+      () => {
+        if (this.quoteGlobal) {
+          return this.quoteGlobal.reload(this.connection);
         }
       },
       this.market.reload(this.connection),
@@ -798,12 +845,9 @@ export class ManifestClient {
 
       return [depositIx, placeOrderIx];
     } else {
-      const global: Global = await Global.loadFromAddress({
-        connection: this.connection,
-        address: getGlobalAddress(
-          params.isBid ? this.quoteMint.address : this.baseMint.address,
-        ),
-      });
+      const global: Global = (
+        params.isBid ? this.quoteGlobal : this.baseGlobal
+      )!;
       const currentBalanceTokens: number = await global.getGlobalBalanceTokens(
         this.connection,
         payer,
@@ -1084,15 +1128,15 @@ export class ManifestClient {
         owner: this.payer,
         wrapperState: this.wrapper.address,
         baseMint: this.baseMint.address,
-        baseGlobal: baseGlobal,
-        baseGlobalVault: baseGlobalVault,
+        baseGlobal,
+        baseGlobalVault,
         baseTokenProgram: this.isBase22
           ? TOKEN_2022_PROGRAM_ID
           : TOKEN_PROGRAM_ID,
         baseMarketVault,
         quoteMint: this.quoteMint.address,
-        quoteGlobal: quoteGlobal,
-        quoteGlobalVault: quoteGlobalVault,
+        quoteGlobal,
+        quoteGlobalVault,
         quoteTokenProgram: this.isQuote22
           ? TOKEN_2022_PROGRAM_ID
           : TOKEN_PROGRAM_ID,
