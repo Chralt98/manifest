@@ -66,14 +66,13 @@ impl<'a, 'info> CreateMarketContext<'a, 'info> {
         let token_program: TokenProgram = TokenProgram::new(next_account_info(account_iter)?)?;
         let token_program_22: TokenProgram = TokenProgram::new(next_account_info(account_iter)?)?;
         #[cfg(feature = "restricted-market-creation")]
-        {
-            let instructions_sysvar = next_account_info(account_iter)?.clone();
-            require!(
-                sysvar::instructions::check_id(instructions_sysvar.key),
-                ManifestError::IncorrectAccount,
-                "Incorrect instructions sysvar account",
-            )?;
-        }
+        let instructions_sysvar = next_account_info(account_iter)?.clone();
+        #[cfg(feature = "restricted-market-creation")]
+        require!(
+            sysvar::instructions::check_id(instructions_sysvar.key),
+            ManifestError::IncorrectAccount,
+            "Incorrect instructions sysvar account",
+        )?;
         Ok(Self {
             payer,
             market,
