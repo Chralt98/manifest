@@ -9,6 +9,7 @@ use crate::{
     validation::{get_vault_address, loaders::CreateMarketContext},
 };
 use hypertree::{get_mut_helper, trace};
+#[cfg(feature = "restricted-market-creation")]
 use solana_program::sysvar::instructions::get_instruction_relative;
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, program_pack::Pack, pubkey::Pubkey,
@@ -23,8 +24,10 @@ use spl_token_2022::{
     state::{Account, Mint},
 };
 
+#[cfg(feature = "restricted-market-creation")]
 const OPM_MAINNET_PROGRAM_ID: Pubkey =
     solana_program::pubkey!("2tQN9ktf7emvUC1VfBAy6gvrs7ijvo7m8WDueMojDD3J");
+#[cfg(feature = "restricted-market-creation")]
 const OPM_DEVNET_PROGRAM_ID: Pubkey =
     solana_program::pubkey!("8b6FCryDKakKT8ATKcdZttVbwqd1joFugJiFEYX7HWa8");
 
@@ -47,17 +50,21 @@ pub(crate) fn process_create_market(
         system_program,
         token_program,
         token_program_22,
+        #[cfg(feature = "restricted-market-creation")]
         instructions_sysvar,
     } = create_market_context;
 
-    let current_ix = get_instruction_relative(0, &instructions_sysvar).unwrap();
+    #[cfg(feature = "restricted-market-creation")]
+    {
+        let current_ix = get_instruction_relative(0, &instructions_sysvar).unwrap();
 
-    require!(
-        current_ix.program_id == OPM_MAINNET_PROGRAM_ID
-            || current_ix.program_id == OPM_DEVNET_PROGRAM_ID,
-        ManifestError::InvalidCaller,
-        "Market creation can only be done by the OPM program",
-    )?;
+        require!(
+            current_ix.program_id == OPM_MAINNET_PROGRAM_ID
+                || current_ix.program_id == OPM_DEVNET_PROGRAM_ID,
+            ManifestError::InvalidCaller,
+            "Market creation can only be done by the OPM program",
+        )?;
+    }
 
     require!(
         base_mint.info.key != quote_mint.info.key,

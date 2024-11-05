@@ -1,11 +1,13 @@
 use std::{cell::Ref, slice::Iter};
 
 use hypertree::{get_helper, trace};
+#[cfg(feature = "restricted-market-creation")]
+use solana_program::sysvar;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     program_error::ProgramError,
     pubkey::Pubkey,
-    system_program, sysvar,
+    system_program,
 };
 
 use crate::{
@@ -28,6 +30,7 @@ pub(crate) struct CreateMarketContext<'a, 'info> {
     pub system_program: Program<'a, 'info>,
     pub token_program: TokenProgram<'a, 'info>,
     pub token_program_22: TokenProgram<'a, 'info>,
+    #[cfg(feature = "restricted-market-creation")]
     pub instructions_sysvar: AccountInfo<'info>,
 }
 
@@ -62,12 +65,15 @@ impl<'a, 'info> CreateMarketContext<'a, 'info> {
         )?;
         let token_program: TokenProgram = TokenProgram::new(next_account_info(account_iter)?)?;
         let token_program_22: TokenProgram = TokenProgram::new(next_account_info(account_iter)?)?;
-        let instructions_sysvar = next_account_info(account_iter)?.clone();
-        require!(
-            sysvar::instructions::check_id(instructions_sysvar.key),
-            ManifestError::IncorrectAccount,
-            "Incorrect instructions sysvar account",
-        )?;
+        #[cfg(feature = "restricted-market-creation")]
+        {
+            let instructions_sysvar = next_account_info(account_iter)?.clone();
+            require!(
+                sysvar::instructions::check_id(instructions_sysvar.key),
+                ManifestError::IncorrectAccount,
+                "Incorrect instructions sysvar account",
+            )?;
+        }
         Ok(Self {
             payer,
             market,
@@ -78,6 +84,7 @@ impl<'a, 'info> CreateMarketContext<'a, 'info> {
             token_program,
             token_program_22,
             system_program,
+            #[cfg(feature = "restricted-market-creation")]
             instructions_sysvar,
         })
     }
