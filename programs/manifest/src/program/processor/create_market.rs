@@ -55,16 +55,15 @@ pub(crate) fn process_create_market(
     } = create_market_context;
 
     #[cfg(feature = "restricted-market-creation")]
-    {
-        let current_ix = get_instruction_relative(0, &instructions_sysvar).unwrap();
+    let current_ix = get_instruction_relative(0, &instructions_sysvar).unwrap();
 
-        require!(
-            current_ix.program_id == OPM_MAINNET_PROGRAM_ID
-                || current_ix.program_id == OPM_DEVNET_PROGRAM_ID,
-            ManifestError::InvalidCaller,
-            "Market creation can only be done by the OPM program",
-        )?;
-    }
+    #[cfg(feature = "restricted-market-creation")]
+    require!(
+        current_ix.program_id == OPM_MAINNET_PROGRAM_ID
+            || current_ix.program_id == OPM_DEVNET_PROGRAM_ID,
+        ManifestError::InvalidCaller,
+        "Market creation can only be done by the OPM program",
+    )?;
 
     require!(
         base_mint.info.key != quote_mint.info.key,
