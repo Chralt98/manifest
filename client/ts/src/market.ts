@@ -22,6 +22,7 @@ import {
   claimedSeatBeet,
   ClaimedSeat as ClaimedSeatRaw,
   createCreateMarketInstruction,
+  OrderType,
   PROGRAM_ID,
   restingOrderBeet,
   RestingOrder as RestingOrderRaw,
@@ -43,6 +44,8 @@ export type RestingOrder = {
   sequenceNumber: bignum;
   /** Price as float in tokens of quote per tokens of base. */
   tokenPrice: number;
+  /** OrderType: 🌎 or Limit or PostOnly */
+  orderType: OrderType;
 };
 
 /**
@@ -81,6 +84,8 @@ export interface MarketData {
   asks: RestingOrder[];
   /** Array of all claimed seats. */
   claimedSeats: ClaimedSeat[];
+  /** Quote volume in atoms. */
+  quoteVolumeAtoms: bigint;
 }
 
 /**
@@ -396,6 +401,15 @@ export class Market {
   }
 
   /**
+   * Gets the quote volume traded over the lifetime of the market.
+   *
+   * @returns bigint
+   */
+  public quoteVolume(): bigint {
+    return this.data.quoteVolumeAtoms;
+  }
+
+  /**
    * Print all information loaded about the market in a human readable format.
    */
   public prettyPrint(): void {
@@ -490,7 +504,12 @@ export class Market {
     const _freeListHeadIndex = data.readUInt32LE(offset);
     offset += 4;
 
-    // _padding2: [u32; 3],
+    const _padding2 = data.readUInt32LE(offset);
+    offset += 4;
+
+    const quoteVolumeAtoms: bigint = data.readBigUInt64LE(offset);
+    offset += 8;
+
     // _padding3: [u64; 8],
 
     const bids: RestingOrder[] =
@@ -591,6 +610,7 @@ export class Market {
       bids,
       asks,
       claimedSeats,
+      quoteVolumeAtoms,
     };
   }
 

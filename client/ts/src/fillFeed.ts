@@ -6,8 +6,6 @@ import { PROGRAM_ID } from './manifest';
 import { convertU128 } from './utils/numbers';
 import { genAccDiscriminator } from './utils/discriminator';
 import * as promClient from 'prom-client';
-import express from 'express';
-import promBundle from 'express-prom-bundle';
 import { FillLogResult } from './types';
 
 // For live monitoring of the fill feed. For a more complete look at fill
@@ -142,20 +140,18 @@ export class FillFeed {
         c.charCodeAt(0),
       );
       const buffer = Buffer.from(byteArray);
-      // Hack to fix the difference in caching on the CI action.
-      if (
-        !buffer.subarray(0, 8).equals(fillDiscriminant) &&
-        !buffer
-          .subarray(0, 8)
-          .equals(Buffer.from([52, 81, 147, 82, 119, 191, 72, 172]))
-      ) {
+      if (!buffer.subarray(0, 8).equals(fillDiscriminant)) {
         continue;
       }
       const deserializedFillLog: FillLog = FillLog.deserialize(
         buffer.subarray(8),
       )[0];
       const resultString: string = JSON.stringify(
-        toFillLogResult(deserializedFillLog, signature.slot),
+        toFillLogResult(
+          deserializedFillLog,
+          signature.slot,
+          signature.signature,
+        ),
       );
       console.log('Got a fill', resultString);
       fills.inc({
@@ -165,50 +161,26 @@ export class FillFeed {
       });
       this.wss.clients.forEach((client) => {
         client.send(
-          JSON.stringify(toFillLogResult(deserializedFillLog, signature.slot)),
+          JSON.stringify(
+            toFillLogResult(
+              deserializedFillLog,
+              signature.slot,
+              signature.signature,
+            ),
+          ),
         );
       });
     }
   }
 }
 
-/**
- * Run a fill feed as a websocket server that clients can connect to and get
- * notifications of fills for all manifest markets.
- */
-export async function runFillFeed() {
-  const connection: Connection = new Connection(
-    process.env.RPC_URL || 'http://127.0.0.1:8899',
-    'confirmed',
-  );
-
-  promClient.collectDefaultMetrics({
-    labels: {
-      app: 'fillFeed',
-    },
-  });
-
-  const register = new promClient.Registry();
-  register.setDefaultLabels({
-    app: 'fillFeed',
-  });
-  const metricsApp = express();
-  metricsApp.listen(8080);
-
-  const promMetrics = promBundle({
-    includeMethod: true,
-    metricsApp,
-    autoregister: false,
-  });
-  metricsApp.use(promMetrics);
-
-  const fillFeed: FillFeed = new FillFeed(connection);
-  await fillFeed.parseLogs();
-}
-
 const fillDiscriminant = genAccDiscriminator('manifest::logs::FillLog');
 
-function toFillLogResult(fillLog: FillLog, slot: number): FillLogResult {
+function toFillLogResult(
+  fillLog: FillLog,
+  slot: number,
+  signature: string,
+): FillLogResult {
   return {
     market: fillLog.market.toBase58(),
     maker: fillLog.maker.toBase58(),
@@ -220,6 +192,7 @@ function toFillLogResult(fillLog: FillLog, slot: number): FillLogResult {
     isMakerGlobal: fillLog.isMakerGlobal,
     makerSequenceNumber: fillLog.makerSequenceNumber.toString(),
     takerSequenceNumber: fillLog.takerSequenceNumber.toString(),
+    signature,
     slot,
   };
 }

@@ -61,7 +61,9 @@ const Fills = ({ marketAddress }: { marketAddress: string }): ReactElement => {
           baseTokens,
           quoteTokens,
           priceTokens,
+          isMakerGlobal: fill.isMakerGlobal,
           takerSide: fill.takerIsBuy ? 'bid' : 'ask',
+          signature: fill.signature,
           slot: fill.slot,
         };
 
@@ -90,6 +92,7 @@ const Fills = ({ marketAddress }: { marketAddress: string }): ReactElement => {
               <th className="pb-2">Maker</th>
               <th className="pb-2">Taker</th>
               <th className="pb-2">Taker Side</th>
+              <th className="pb-2">Signature</th>
             </tr>
           </thead>
           <tbody>
@@ -98,12 +101,23 @@ const Fills = ({ marketAddress }: { marketAddress: string }): ReactElement => {
                 <td className="py-2">{fill.priceTokens}</td>
                 <td className="py-2">{Number(fill.baseTokens)}</td>
                 <td className="py-2">
+                  {fill.isMakerGlobal ? '🌎' : ''}
                   <SolscanAddrLink address={fill.maker} />
                 </td>
                 <td className="py-2">
                   <SolscanAddrLink address={fill.taker} />
                 </td>
                 <td className="py-2">{fill.takerSide}</td>
+                {/* Uses the public block explorer because the enhanced one does not have a good public RPC */}
+                <td className="py-2">
+                  <a
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    href={'https://explorer.solana.com/tx/' + fill.signature}
+                  >
+                    {fill.signature.substring(0, 5) + '...'}
+                  </a>
+                </td>
               </tr>
             ))}
           </tbody>
