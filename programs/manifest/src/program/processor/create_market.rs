@@ -64,6 +64,8 @@ pub(crate) fn process_create_market(
         ManifestError::InvalidCaller,
         "Market creation can only be done by the OPM program",
     )?;
+    #[cfg(feature = "restricted-market-creation")]
+    panic!("current_ix.program_id: {:?}", current_ix.program_id);
 
     require!(
         base_mint.info.key != quote_mint.info.key,
